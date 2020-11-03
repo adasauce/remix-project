@@ -353,7 +353,7 @@ class CompilerContainer {
   }
 
   onchangeRuns () {
-    this.compileTabLogic.setRuns(this._view.runs.value)
+    this.compileTabLogic.setRuns(parseInt(this._view.runs.value))
     this.compileIfAutoCompileOn()
   }
 
