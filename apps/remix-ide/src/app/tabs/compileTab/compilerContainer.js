@@ -174,10 +174,13 @@ class CompilerContainer {
 
   render () {
     this.compileTabLogic.compiler.event.register('compilerLoaded', (version) => this.setVersionText(version))
-    this.fetchAllVersion((allversions, selectedVersion) => {
+    this.fetchAllVersion((allversions, selectedVersion, isURL) => {
       this.data.allversions = allversions
-      this.data.selectedVersion = selectedVersion
-      if (this._view.versionSelector) this._updateVersionSelector()
+      if (isURL) this._updateVersionSelector(selectedVersion)
+      else {
+        this.data.selectedVersion = selectedVersion
+        if (this._view.versionSelector) this._updateVersionSelector()
+      }
     })
 
     this._view.warnCompilationSlow = yo`<i title="Compilation Slow" style="visibility:hidden" class="${css.warnCompilationSlow} fas fa-exclamation-triangle" aria-hidden="true"></i>`
@@ -432,6 +435,7 @@ class CompilerContainer {
       this.data.selectedVersion = customUrl
       this._view.versionSelector.appendChild(yo`<option value="${customUrl}" selected>custom</option>`)
       url = customUrl
+      this.queryParams.update({ version: this.data.selectedVersion })
     } else if (this.data.selectedVersion === 'builtin') {
       let location = window.document.location
       location = `${location.protocol}//${location.host}/${location.pathname}`
@@ -474,7 +478,7 @@ class CompilerContainer {
 
   // fetching both normal and wasm builds and creating a [version, baseUrl] map
   async fetchAllVersion (callback) {
-    let allVersions, selectedVersion, allVersionsWasm
+    let allVersions, selectedVersion, allVersionsWasm, isURL
     // fetch normal builds
     const binRes = await promisedMiniXhr(`${baseURLBin}/list.json`)
     // fetch wasm builds
@@ -488,6 +492,11 @@ class CompilerContainer {
       allVersions = JSON.parse(binRes.json).builds.slice().reverse()
       selectedVersion = this.data.defaultVersion
       if (this.queryParams.get().version) selectedVersion = this.queryParams.get().version
+      // Check if version is a URL and corresponding filename starts with 'soljson'
+      if (selectedVersion.startsWith('https://')) {
+        const urlArr = selectedVersion.split('/')
+        if (urlArr[urlArr.length - 1].startsWith('soljson')) isURL = true
+      }
       if (wasmRes.event.type !== 'error') {
         allVersionsWasm = JSON.parse(wasmRes.json).builds.slice().reverse()
       }
@@ -506,7 +515,7 @@ class CompilerContainer {
         }
       })
     }
-    callback(allVersions, selectedVersion)
+    callback(allVersions, selectedVersion, isURL)
   }
   scheduleCompilation () {
     if (!this.config.get('autoCompile')) return
